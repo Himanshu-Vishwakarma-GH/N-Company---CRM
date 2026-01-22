@@ -1,0 +1,41 @@
+.app {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--color-bg-primary);
+}
+
+.main-content {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.page-container {
+    flex: 1;
+    padding: var(--space-8);
+    margin-top: var(--topbar-height);
+    max-width: var(--content-max-width);
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .main-content {
+        margin-left: 0;
+    }
+
+    .page-container {
+        padding: var(--space-6);
+    }
+}
+
+@media (max-width: 768px) {
+    .page-container {
+        padding: var(--space-4);
+    }
+}
