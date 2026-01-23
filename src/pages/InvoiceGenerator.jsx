@@ -1,22 +1,94 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Button from '../components/Button';
 import { Input, Select } from '../components/Input';
+import { invoiceAPI } from '../services/api';
 import './InvoiceGenerator.css';
 
 const InvoiceGenerator = () => {
+    // Form states
     const [invoiceNumber, setInvoiceNumber] = useState('');
-    const [selectedClient, setSelectedClient] = useState('');
+    const [manualInvoiceId, setManualInvoiceId] = useState('');
+    const [clientName, setClientName] = useState('');
+    const [salesPerson, setSalesPerson] = useState('');
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+    const [dueDate, setDueDate] = useState('');
+
+    // UI states
+    const [loading, setLoading] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [invoiceIdError, setInvoiceIdError] = useState('');
+    const [showAddClientModal, setShowAddClientModal] = useState(false);
+
+    // Line items
     const [lineItems, setLineItems] = useState([
         { id: 1, service: '', description: '', quantity: 1, unitPrice: 0, tax: 18, discount: 0 }
     ]);
 
-    const clients = [
-        { value: 'CLT001', label: 'Acme Corporation' },
-        { value: 'CLT002', label: 'Tech Innovators Ltd' },
-        { value: 'CLT003', label: 'Global Solutions Inc' },
-    ];
+    // Client data for suggestions
+    const [clientSuggestions, setClientSuggestions] = useState([
+        'Acme Corporation',
+        'Tech Innovators Ltd',
+        'Global Solutions Inc',
+        'MegaCorp Industries',
+        'StartupXYZ'
+    ]);
 
+    // Sales person suggestions
+    const [salesPersonSuggestions, setSalesPersonSuggestions] = useState([
+        'Rajesh Kumar',
+        'Priya Sharma',
+        'Amit Patel',
+        'Neha Singh',
+        'Ravi Gupta'
+    ]);
+
+    // New client form states
+    const [newClient, setNewClient] = useState({
+        name: '',
+        contact: '',
+        email: '',
+        phone: '',
+        industry: '',
+        address: ''
+    });
+
+    // Check invoice ID uniqueness
+    const checkInvoiceId = async (invId) => {
+        if (!invId || invId.length < 3) {
+            setInvoiceIdError('');
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:8000/api/v1/invoices/${invId}`, {
+                headers: { 'X-API-Key': 'dev-api-key-12345' }
+            });
+
+            if (response.ok) {
+                setInvoiceIdError('⚠️ This Invoice ID already exists in the database');
+            } else {
+                setInvoiceIdError('');
+            }
+        } catch (error) {
+            setInvoiceIdError('');
+        }
+    };
+
+    // Handle invoice ID input
+    const handleInvoiceIdChange = (e) => {
+        const value = e.target.value.toUpperCase();
+        setManualInvoiceId(value);
+
+        // Debounce check
+        if (value) {
+            setTimeout(() => checkInvoiceId(value), 500);
+        } else {
+            setInvoiceIdError('');
+        }
+    };
+
+    // Line item functions
     const addLineItem = () => {
         setLineItems([...lineItems, {
             id: Date.now(),
@@ -57,8 +129,133 @@ const InvoiceGenerator = () => {
 
     const totals = calculateTotals();
 
-    const handleGenerate = () => {
-        alert('Invoice generated successfully!');
+    // Handle invoice generation
+    const handleGenerate = async () => {
+        // Validation
+        if (invoiceIdError) {
+            setErrorMessage('Please use a unique Invoice ID');
+            return;
+        }
+
+        if (!manualInvoiceId) {
+            setErrorMessage('Please enter an Invoice ID');
+            return;
+        }
+
+        if (!clientName || clientName.trim() === '') {
+            setErrorMessage('Please enter or select a client name');
+            return;
+        }
+
+        if (!salesPerson || salesPerson.trim() === '') {
+            setErrorMessage('Please enter or select a salesperson');
+            return;
+        }
+
+        if (!invoiceDate) {
+            setErrorMessage('Please select an invoice date');
+            return;
+        }
+
+        if (!dueDate) {
+            setErrorMessage('Please select a due date');
+            return;
+        }
+
+        if (lineItems.length === 0 || !lineItems[0].service) {
+            setErrorMessage('Please add at least one line item');
+            return;
+        }
+
+        setLoading(true);
+        setErrorMessage('');
+        setSuccessMessage('');
+
+        try {
+            // Prepare data - need to create a client ID from name
+            const clientId = 'CLT' + Date.now().toString().slice(-3);
+
+            const invoiceData = {
+                invoice_id: manualInvoiceId,
+                client_id: clientId,
+                client_name: clientName.trim(),
+                invoice_date: invoiceDate,
+                due_date: dueDate,
+                sales_person: salesPerson.trim(),
+                items: lineItems.map(item => ({
+                    service: item.service,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unit_price: item.unitPrice,
+                    tax_percent: item.tax,
+                    discount_percent: item.discount
+                }))
+            };
+
+            // Save to backend
+            const result = await invoiceAPI.createInvoice(invoiceData);
+
+            // Add new names to suggestions if not already there
+            if (!clientSuggestions.includes(clientName.trim())) {
+                setClientSuggestions([...clientSuggestions, clientName.trim()]);
+            }
+            if (!salesPersonSuggestions.includes(salesPerson.trim())) {
+                setSalesPersonSuggestions([...salesPersonSuggestions, salesPerson.trim()]);
+            }
+
+            // Success!
+            setSuccessMessage(`✓ Invoice ${result.invoice_id} created successfully! Total: ₹${result.grand_total}`);
+            setInvoiceNumber(result.invoice_id);
+
+            // Clear form after 3 seconds
+            setTimeout(() => {
+                clearForm();
+            }, 3000);
+
+        } catch (error) {
+            setErrorMessage(`Failed to create invoice: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const clearForm = () => {
+        setInvoiceNumber('');
+        setManualInvoiceId('');
+        setClientName('');
+        setSalesPerson('');
+        setInvoiceDate(new Date().toISOString().split('T')[0]);
+        setDueDate('');
+        setLineItems([{ id: 1, service: '', description: '', quantity: 1, unitPrice: 0, tax: 18, discount: 0 }]);
+        setSuccessMessage('');
+        setErrorMessage('');
+        setInvoiceIdError('');
+    };
+
+    // Handle Add New Client
+    const handleAddClient = () => {
+        // Pre-fill with current client name if entered
+        setNewClient({ ...newClient, name: clientName });
+        setShowAddClientModal(true);
+    };
+
+    const handleSaveNewClient = () => {
+        if (!newClient.name.trim()) {
+            alert('Please enter a client name');
+            return;
+        }
+
+        // Add to suggestions
+        if (!clientSuggestions.includes(newClient.name.trim())) {
+            setClientSuggestions([...clientSuggestions, newClient.name.trim()]);
+        }
+
+        // Set as current client
+        setClientName(newClient.name.trim());
+
+        // Close modal and reset
+        setShowAddClientModal(false);
+        setNewClient({ name: '', contact: '', email: '', phone: '', industry: '', address: '' });
     };
 
     return (
@@ -66,46 +263,106 @@ const InvoiceGenerator = () => {
             <div className="invoice-header">
                 <div>
                     <h2>Create New Invoice</h2>
-                    <p className="invoice-subtitle">Generate professional invoices for your clients</p>
+                    <p className="invoice-subtitle">Generate professional invoices - saved to Google Sheets in real-time</p>
                 </div>
                 <div className="invoice-actions-header">
-                    <Button variant="ghost">Clear Form</Button>
+                    <Button variant="ghost" onClick={clearForm}>Clear Form</Button>
                     <Button variant="outline">Save Draft</Button>
                 </div>
             </div>
+
+            {successMessage && (
+                <div className="alert alert-success">
+                    {successMessage}
+                </div>
+            )}
+
+            {errorMessage && (
+                <div className="alert alert-error">
+                    ✗ {errorMessage}
+                </div>
+            )}
 
             <div className="invoice-container">
                 <div className="invoice-form-section">
                     <h3 className="section-title">Invoice Details</h3>
                     <div className="form-grid">
+                        <div>
+                            <label className="input-label">Invoice ID * (Must be unique)</label>
+                            <input
+                                className="form-input"
+                                placeholder="ACWB50000 (Example)"
+                                value={manualInvoiceId}
+                                onChange={handleInvoiceIdChange}
+                                style={{ borderColor: invoiceIdError ? '#ef4444' : '' }}
+                            />
+                            {invoiceIdError && <div className="field-error">{invoiceIdError}</div>}
+                            <div className="invoice-id-helper">
+                                <strong>Format:</strong> [Client Initials (2)] + [Work Type (2)] + [Price (4 digits)]
+                                <div className="invoice-id-example">
+                                    Example: AC + WB + 5000 = ACWB5000 (Acme Corp, Web Dev, ₹50,000)
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="input-label">Client Name * (Type or Select)</label>
+                            <input
+                                className="form-input"
+                                list="client-list"
+                                placeholder="Type or select client name"
+                                value={clientName}
+                                onChange={(e) => setClientName(e.target.value)}
+                            />
+                            <datalist id="client-list">
+                                {clientSuggestions.map((client, idx) => (
+                                    <option key={idx} value={client} />
+                                ))}
+                            </datalist>
+                        </div>
+
                         <Input
-                            label="Invoice Number"
-                            placeholder="INV-2026-001"
-                            value={invoiceNumber}
-                            onChange={(e) => setInvoiceNumber(e.target.value)}
-                            required
-                        />
-                        <Select
-                            label="Client"
-                            options={clients}
-                            value={selectedClient}
-                            onChange={(e) => setSelectedClient(e.target.value)}
-                            required
-                        />
-                        <Input
-                            label="Invoice Date"
+                            label="Invoice Date *"
                             type="date"
                             value={invoiceDate}
                             onChange={(e) => setInvoiceDate(e.target.value)}
                             required
                         />
+
+                        <Input
+                            label="Due Date *"
+                            type="date"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            required
+                        />
+
+                        <div>
+                            <label className="input-label">Sales Person * (Type or Select)</label>
+                            <input
+                                className="form-input"
+                                list="salesperson-list"
+                                placeholder="Type or select salesperson"
+                                value={salesPerson}
+                                onChange={(e) => setSalesPerson(e.target.value)}
+                            />
+                            <datalist id="salesperson-list">
+                                {salesPersonSuggestions.map((person, idx) => (
+                                    <option key={idx} value={person} />
+                                ))}
+                            </datalist>
+                        </div>
+
                         <div className="add-client-wrapper">
                             <label className="input-label">Quick Action</label>
-                            <Button variant="secondary" size="sm" icon="➕">Add New Client</Button>
+                            <Button variant="secondary" size="sm" icon="➕" onClick={handleAddClient}>
+                                Add New Client
+                            </Button>
                         </div>
                     </div>
                 </div>
 
+                {/* Line Items Section - same as before */}
                 <div className="invoice-form-section">
                     <div className="section-header">
                         <h3 className="section-title">Line Items</h3>
@@ -188,6 +445,7 @@ const InvoiceGenerator = () => {
                     </div>
                 </div>
 
+                {/* Totals - same as before */}
                 <div className="invoice-totals">
                     <div className="totals-grid">
                         <div className="total-row">
@@ -210,14 +468,76 @@ const InvoiceGenerator = () => {
                 </div>
 
                 <div className="invoice-actions">
-                    <Button variant="success" size="lg" icon="✓" onClick={handleGenerate}>
-                        Generate Invoice
+                    <Button
+                        variant="success"
+                        size="lg"
+                        icon={loading ? "⏳" : "✓"}
+                        onClick={handleGenerate}
+                        disabled={loading || !!invoiceIdError}
+                    >
+                        {loading ? 'Creating Invoice...' : 'Generate Invoice'}
                     </Button>
                     <Button variant="primary" size="lg" icon="📥">
                         Download PDF
                     </Button>
                 </div>
             </div>
+
+            {/* Add New Client Modal */}
+            {showAddClientModal && (
+                <div className="modal-overlay" onClick={() => setShowAddClientModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <h3>Add New Client</h3>
+                        <div className="modal-form">
+                            <Input
+                                label="Client Name *"
+                                value={newClient.name}
+                                onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                                placeholder="Company name"
+                            />
+                            <Input
+                                label="Contact Person"
+                                value={newClient.contact}
+                                onChange={(e) => setNewClient({ ...newClient, contact: e.target.value })}
+                                placeholder="Contact name"
+                            />
+                            <Input
+                                label="Email"
+                                type="email"
+                                value={newClient.email}
+                                onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                                placeholder="email@example.com"
+                            />
+                            <Input
+                                label="Phone"
+                                value={newClient.phone}
+                                onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                                placeholder="+91-XXXXXXXXXX"
+                            />
+                            <Input
+                                label="Industry"
+                                value={newClient.industry}
+                                onChange={(e) => setNewClient({ ...newClient, industry: e.target.value })}
+                                placeholder="Technology, Finance, etc."
+                            />
+                            <Input
+                                label="Address"
+                                value={newClient.address}
+                                onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
+                                placeholder="Full address"
+                            />
+                        </div>
+                        <div className="modal-actions">
+                            <Button variant="ghost" onClick={() => setShowAddClientModal(false)}>
+                                Cancel
+                            </Button>
+                            <Button variant="primary" onClick={handleSaveNewClient}>
+                                Save Client
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

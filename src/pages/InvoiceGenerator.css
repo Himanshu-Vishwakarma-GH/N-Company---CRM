@@ -1,3 +1,7 @@
+@import './InvoiceGenerator-alerts.css';
+@import './InvoiceGenerator-modal.css';
+@import './InvoiceGenerator-helper.css';
+
 .invoice-page {
     animation: fadeIn 0.3s ease-out;
 }

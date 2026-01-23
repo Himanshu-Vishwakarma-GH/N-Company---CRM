@@ -1,0 +1,21 @@
+/* Invoice ID Helper Section */
+.invoice-id-helper {
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    background: rgba(99, 102, 241, 0.05);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.invoice-id-helper strong {
+    color: var(--color-primary-light);
+    font-weight: var(--font-weight-semibold);
+}
+
+.invoice-id-example {
+    margin-top: var(--space-1);
+    font-family: var(--font-family-mono);
+    color: var(--color-text-muted);
+}
