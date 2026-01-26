@@ -1,3 +1,4 @@
+import { useSearch } from "../context/SearchContext";
 import { useState } from 'react';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
@@ -6,27 +7,39 @@ import { getClientLifetimeValue, formatCurrency } from '../utils/dataCalculation
 import './ClientManagement.css';
 
 const ClientManagement = () => {
+    const { query } = useSearch();
+
     const [viewMode, setViewMode] = useState('pipeline');
 
     // Organize clients by stage with calculated lifetime values
-    const clientsByStage = {
-        leads: clients.filter(c => c.stage === 'leads').map(c => ({
+    const filteredClients = clients.filter((client) => {
+  if (!query) return true;
+
+  const searchText = query.toLowerCase();
+
+  return (
+    client.name.toLowerCase().includes(searchText) ||
+    client.id.toLowerCase().includes(searchText)
+  );
+});
+     const clientsByStage = {
+        leads: filteredClients.filter(c => c.stage === 'leads').map(c => ({
             ...c,
             lifetimeValue: getClientLifetimeValue(c.id)
         })),
-        followUps: clients.filter(c => c.stage === 'followUps').map(c => ({
+        followUps: filteredClients.filter(c => c.stage === 'followUps').map(c => ({
             ...c,
             lifetimeValue: getClientLifetimeValue(c.id)
         })),
-        converted: clients.filter(c => c.stage === 'converted').map(c => ({
+        converted: filteredClients.filter(c => c.stage === 'converted').map(c => ({
             ...c,
             lifetimeValue: getClientLifetimeValue(c.id)
         })),
-        completed: clients.filter(c => c.stage === 'completed').map(c => ({
+        completed: filteredClients.filter(c => c.stage === 'completed').map(c => ({
             ...c,
             lifetimeValue: getClientLifetimeValue(c.id)
         })),
-        repeat: clients.filter(c => c.stage === 'repeat').map(c => ({
+        repeat: filteredClients.filter(c => c.stage === 'repeat').map(c => ({
             ...c,
             lifetimeValue: getClientLifetimeValue(c.id)
         }))

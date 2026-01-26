@@ -1,3 +1,4 @@
+import { useSearch } from "../context/SearchContext";
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Badge from '../components/Badge';
@@ -8,7 +9,8 @@ import { getClientById, getTotalRevenue, getPaidRevenue, getPendingRevenue, form
 import './InvoiceList.css';
 
 const InvoiceList = () => {
-    const [searchTerm, setSearchTerm] = useState('');
+    const { query } = useSearch();
+    
     const [statusFilter, setStatusFilter] = useState('all');
 
     // Calculate statistics
@@ -21,9 +23,10 @@ const InvoiceList = () => {
     const filteredInvoices = invoices
         .filter(inv => {
             const client = getClientById(inv.clientId);
-            const matchesSearch = searchTerm === '' ||
-                inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                client?.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = !query ||
+inv.invoiceNumber.toLowerCase().includes(query.toLowerCase()) ||
+client?.name.toLowerCase().includes(query.toLowerCase());
+
 
             const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
 

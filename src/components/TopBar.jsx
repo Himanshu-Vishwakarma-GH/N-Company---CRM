@@ -1,7 +1,10 @@
+import Input from "./Input";
+import { useSearch } from "../context/SearchContext";
 import { useLocation } from 'react-router-dom';
 import './TopBar.css';
 
 const TopBar = () => {
+    const { query, setQuery } = useSearch();
     const location = useLocation();
 
     const getPageTitle = () => {
@@ -44,7 +47,13 @@ const TopBar = () => {
                 <div className="topbar-right">
                     <div className="search-box">
                         <span className="search-icon">🔍</span>
-                        <input type="text" placeholder="Search..." className="search-input" />
+                     <Input
+  placeholder="Search by Invoice ID or Client ID"
+  value={query}
+  onChange={(e) => setQuery(e.target.value)}
+  className="search-input"/>
+
+
                     </div>
 
                     <button className="icon-button">
