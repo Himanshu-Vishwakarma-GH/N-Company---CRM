@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.core.config import settings
-from app.routers import invoice
+from app.routers import invoice, client, dashboard, task
 
 # Configure logging
 logging.basicConfig(
@@ -39,6 +39,18 @@ app.add_middleware(
 # Include routers
 app.include_router(
     invoice.router,
+    prefix=settings.api_prefix
+)
+app.include_router(
+    client.router,
+    prefix=settings.api_prefix
+)
+app.include_router(
+    dashboard.router,
+    prefix=settings.api_prefix
+)
+app.include_router(
+    task.router,
     prefix=settings.api_prefix
 )
 

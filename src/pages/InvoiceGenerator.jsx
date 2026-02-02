@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Button from '../components/Button';
 import { Input, Select } from '../components/Input';
 import { invoiceAPI } from '../services/api';
+import { generateInvoicePDF } from '../utils/pdfGenerator';
 import './InvoiceGenerator.css';
 
 const InvoiceGenerator = () => {
@@ -9,6 +10,7 @@ const InvoiceGenerator = () => {
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [manualInvoiceId, setManualInvoiceId] = useState('');
     const [clientName, setClientName] = useState('');
+    const [clientId, setClientId] = useState(''); // Store the selected client's ID
     const [salesPerson, setSalesPerson] = useState('');
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
     const [dueDate, setDueDate] = useState('');
@@ -232,6 +234,56 @@ const InvoiceGenerator = () => {
         setInvoiceIdError('');
     };
 
+    // Handle Download PDF
+    const handleDownloadPDF = () => {
+        // Validate that required fields are filled
+        if (!manualInvoiceId.trim()) {
+            setErrorMessage('Please enter an Invoice ID before downloading PDF');
+            return;
+        }
+        if (!clientName.trim()) {
+            setErrorMessage('Please enter a Client Name before downloading PDF');
+            return;
+        }
+        if (!invoiceDate || !dueDate) {
+            setErrorMessage('Please enter Invoice Date and Due Date before downloading PDF');
+            return;
+        }
+        if (lineItems.length === 0 || !lineItems[0].service) {
+            setErrorMessage('Please add at least one line item before downloading PDF');
+            return;
+        }
+
+        try {
+            // Prepare invoice data for PDF
+            const invoiceData = {
+                invoice_id: manualInvoiceId,
+                client_name: clientName.trim(),
+                invoice_date: invoiceDate,
+                due_date: dueDate,
+                sales_person: salesPerson.trim() || 'N/A',
+                items: lineItems.map(item => ({
+                    service: item.service,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unit_price: item.unitPrice,
+                    tax_percent: item.tax,
+                    discount_percent: item.discount
+                })),
+                totals: totals
+            };
+
+            // Generate and download PDF
+            const filename = generateInvoicePDF(invoiceData);
+            setSuccessMessage(`PDF downloaded successfully: ${filename}`);
+
+            // Clear error message if any
+            setErrorMessage('');
+        } catch (error) {
+            setErrorMessage(`Failed to generate PDF: ${error.message}`);
+        }
+    };
+
     // Handle Add New Client
     const handleAddClient = () => {
         // Pre-fill with current client name if entered
@@ -239,23 +291,48 @@ const InvoiceGenerator = () => {
         setShowAddClientModal(true);
     };
 
-    const handleSaveNewClient = () => {
+    const handleSaveNewClient = async () => {
         if (!newClient.name.trim()) {
             alert('Please enter a client name');
             return;
         }
 
-        // Add to suggestions
-        if (!clientSuggestions.includes(newClient.name.trim())) {
-            setClientSuggestions([...clientSuggestions, newClient.name.trim()]);
+        try {
+            setLoading(true);
+            setErrorMessage('');
+
+            // Call backend API to save client to Google Sheets
+            const { clientAPI } = await import('../services/clientAPI');
+            const savedClient = await clientAPI.createClient({
+                name: newClient.name.trim(),
+                contact: newClient.contact.trim() || null,
+                email: newClient.email.trim() || null,
+                phone: newClient.phone.trim() || null,
+                industry: newClient.industry.trim() || null,
+                address: newClient.address.trim() || null
+            });
+
+            // Add to suggestions
+            if (!clientSuggestions.includes(savedClient.name)) {
+                setClientSuggestions([...clientSuggestions, savedClient.name]);
+            }
+
+            // Set as current client (use the name from saved client)
+            setClientName(savedClient.name);
+            setClientId(savedClient.client_id); // Set the generated client ID
+
+            // Show success message
+            setSuccessMessage(`Client "${savedClient.name}" (${savedClient.client_id}) added successfully!`);
+
+            // Close modal and reset
+            setShowAddClientModal(false);
+            setNewClient({ name: '', contact: '', email: '', phone: '', industry: '', address: '' });
+        } catch (error) {
+            setErrorMessage(`Failed to save client: ${error.message}`);
+            console.error('Error saving client:', error);
+        } finally {
+            setLoading(false);
         }
-
-        // Set as current client
-        setClientName(newClient.name.trim());
-
-        // Close modal and reset
-        setShowAddClientModal(false);
-        setNewClient({ name: '', contact: '', email: '', phone: '', industry: '', address: '' });
     };
 
     return (
@@ -477,7 +554,7 @@ const InvoiceGenerator = () => {
                     >
                         {loading ? 'Creating Invoice...' : 'Generate Invoice'}
                     </Button>
-                    <Button variant="primary" size="lg" icon="📥">
+                    <Button variant="primary" size="lg" icon="📥" onClick={handleDownloadPDF}>
                         Download PDF
                     </Button>
                 </div>

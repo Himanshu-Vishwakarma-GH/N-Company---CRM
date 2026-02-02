@@ -1,113 +1,145 @@
-import Badge from '../components/Badge';
-import { getOrdersByStatus } from '../utils/dataCalculations';
+import { useState, useEffect } from 'react';
+import StatCard from '../components/StatCard';
+import KanbanBoard from '../components/KanbanBoard';
+import Button from '../components/Button';
+import { taskAPI } from '../services/api';
 import './OperationsDashboard.css';
 
 const OperationsDashboard = () => {
-    // Get orders from actual invoices
-    const orders = getOrdersByStatus();
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const tasks = [
-        { id: 1, title: 'Complete client onboarding - Acme Corp', priority: 'high', assignee: 'Rajesh', dueDate: '2026-01-23' },
-        { id: 2, title: 'Update inventory records', priority: 'medium', assignee: 'Priya', dueDate: '2026-01-24' },
-        { id: 3, title: 'Process pending invoices', priority: 'high', assignee: 'Amit', dueDate: '2026-01-22' },
-        { id: 4, title: 'Quality check batch #45', priority: 'low', assignee: 'Neha', dueDate: '2026-01-25' },
-    ];
+    // Fetch tasks on mount
+    useEffect(() => {
+        fetchTasks();
+    }, []);
+
+    const fetchTasks = async () => {
+        try {
+            setLoading(true);
+            const tasksData = await taskAPI.listTasks();
+            setTasks(tasksData);
+        } catch (error) {
+            console.error('Failed to fetch tasks:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStatusChange = async (taskId, newStatus) => {
+        try {
+            // Optimistic update
+            setTasks(prevTasks =>
+                prevTasks.map(task =>
+                    task.task_id === taskId
+                        ? { ...task, status: newStatus }
+                        : task
+                )
+            );
+
+            // Update in backend
+            await taskAPI.updateTaskStatus(taskId, newStatus);
+            console.log(`Task ${taskId} status updated to ${newStatus}`);
+        } catch (error) {
+            console.error('Failed to update task status:', error);
+            // Revert on error
+            fetchTasks();
+        }
+    };
+
+    // Calculate metrics
+    const totalTasks = tasks.length;
+    const todoTasks = tasks.filter(t => t.status === 'todo').length;
+    const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
+    const reviewTasks = tasks.filter(t => t.status === 'review').length;
+    const doneTasks = tasks.filter(t => t.status === 'done').length;
+    const completionRate = totalTasks > 0 ? ((doneTasks / totalTasks) * 100).toFixed(1) : 0;
+
+    // Count overdue tasks
+    const today = new Date().toISOString().split('T')[0];
+    const overdueTasks = tasks.filter(t =>
+        t.due_date && t.due_date < today && t.status !== 'done'
+    ).length;
+
+    if (loading) {
+        return (
+            <div className="operations-dashboard">
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                    <h2>Loading tasks...</h2>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="operations-dashboard">
-            <div className="status-board">
-                <div className="board-column">
-                    <div className="column-header pending-header">
-                        <h3>Pending</h3>
-                        <Badge variant="warning" size="sm">{orders.pending.length}</Badge>
-                    </div>
-                    <div className="order-cards">
-                        {orders.pending.map(order => (
-                            <div key={order.id} className="order-card">
-                                <div className="order-id">{order.id}</div>
-                                <div className="order-client">{order.client}</div>
-                                <div className="order-item">{order.item}</div>
-                                <div className="order-due">Due: {order.dueDate}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="board-column">
-                    <div className="column-header progress-header">
-                        <h3>In Progress</h3>
-                        <Badge variant="info" size="sm">{orders.inProgress.length}</Badge>
-                    </div>
-                    <div className="order-cards">
-                        {orders.inProgress.map(order => (
-                            <div key={order.id} className="order-card">
-                                <div className="order-id">{order.id}</div>
-                                <div className="order-client">{order.client}</div>
-                                <div className="order-item">{order.item}</div>
-                                <div className="order-assignee">📦 Processing</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="board-column">
-                    <div className="column-header shipped-header">
-                        <h3>Shipped</h3>
-                        <Badge variant="primary" size="sm">{orders.shipped.length}</Badge>
-                    </div>
-                    <div className="order-cards">
-                        {orders.shipped.map(order => (
-                            <div key={order.id} className="order-card">
-                                <div className="order-id">{order.id}</div>
-                                <div className="order-client">{order.client}</div>
-                                <div className="order-item">{order.item}</div>
-                                <div className="order-shipped">📦 {order.shippedDate}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="board-column">
-                    <div className="column-header delivered-header">
-                        <h3>Delivered</h3>
-                        <Badge variant="success" size="sm">{orders.delivered.length}</Badge>
-                    </div>
-                    <div className="order-cards">
-                        {orders.delivered.map(order => (
-                            <div key={order.id} className="order-card">
-                                <div className="order-id">{order.id}</div>
-                                <div className="order-client">{order.client}</div>
-                                <div className="order-item">{order.item}</div>
-                                <div className="order-delivered">✓ {order.deliveredDate}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            {/* KPIs */}
+            <div className="kpi-grid">
+                <StatCard
+                    title="Total Tasks"
+                    value={totalTasks.toString()}
+                    trend="Active tasks"
+                    trendValue={inProgressTasks}
+                    icon="📋"
+                    color="primary"
+                />
+                <StatCard
+                    title="In Progress"
+                    value={inProgressTasks.toString()}
+                    trend="Being worked on"
+                    trendValue={0}
+                    icon="⚡"
+                    color="info"
+                />
+                <StatCard
+                    title="Completion Rate"
+                    value={`${completionRate}%`}
+                    trend={`${doneTasks} completed`}
+                    trendValue={0}
+                    icon="✅"
+                    color="success"
+                />
+                <StatCard
+                    title="Overdue"
+                    value={overdueTasks.toString()}
+                    trend="Need attention"
+                    trendValue={0}
+                    icon="⚠️"
+                    color="danger"
+                />
             </div>
 
-            <div className="tasks-section">
-                <h3 className="section-title">Pending Tasks</h3>
-                <div className="tasks-list">
-                    {tasks.map(task => (
-                        <div key={task.id} className="task-item">
-                            <input type="checkbox" className="task-checkbox" />
-                            <div className="task-info">
-                                <div className="task-title">{task.title}</div>
-                                <div className="task-meta">
-                                    <span>👤 {task.assignee}</span>
-                                    <span>📅 {task.dueDate}</span>
-                                </div>
-                            </div>
-                            <Badge
-                                variant={
-                                    task.priority === 'high' ? 'danger' :
-                                        task.priority === 'medium' ? 'warning' : 'default'
-                                }
-                            >
-                                {task.priority}
-                            </Badge>
-                        </div>
-                    ))}
+            {/* Kanban Board Header */}
+            <div className="kanban-header">
+                <h2 className="section-title">Task Board</h2>
+                <Button variant="primary" icon="➕">
+                    Add New Task
+                </Button>
+            </div>
+
+            {/* Kanban Board */}
+            <KanbanBoard
+                tasks={tasks}
+                onStatusChange={handleStatusChange}
+            />
+
+            {/* Task Stats */}
+            <div className="task-stats">
+                <div className="stat-item">
+                    <span className="stat-label">📋 To Do:</span>
+                    <span className="stat-value">{todoTasks}</span>
+                </div>
+                <div className="stat-item">
+                    <span className="stat-label">⚡ In Progress:</span>
+                    <span className="stat-value">{inProgressTasks}</span>
+                </div>
+                <div className="stat-item">
+                    <span className="stat-label">👁️ Review:</span>
+                    <span className="stat-value">{reviewTasks}</span>
+                </div>
+                <div className="stat-item">
+                    <span className="stat-label">✅ Done:</span>
+                    <span className="stat-value">{doneTasks}</span>
                 </div>
             </div>
         </div>

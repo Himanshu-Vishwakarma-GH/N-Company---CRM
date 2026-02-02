@@ -1,17 +1,64 @@
+import { useState, useEffect } from 'react';
 import StatCard from '../components/StatCard';
 import ChartCard from '../components/ChartCard';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { getExecutiveKPIs, getMonthlyRevenue, getProductRevenue, formatCurrency } from '../utils/dataCalculations';
+import { dashboardAPI } from '../services/api';
+import { formatCurrency } from '../utils/dataCalculations';
 import './ExecutiveDashboard.css';
 
 const ExecutiveDashboard = () => {
-    const kpis = getExecutiveKPIs();
-    const revenueData = getMonthlyRevenue(6).map(data => ({
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Fetch dashboard data on mount
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                setLoading(true);
+                const data = await dashboardAPI.getExecutiveMetrics();
+                setDashboardData(data);
+                setError(null);
+            } catch (err) {
+                console.error('Failed to fetch dashboard data:', err);
+                setError('Failed to load dashboard data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    // Show loading state
+    if (loading) {
+        return (
+            <div className="dashboard-page">
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                    <h2>Loading dashboard...</h2>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error state
+    if (error) {
+        return (
+            <div className="dashboard-page">
+                <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>
+                    <h2>{error}</h2>
+                    <button onClick={() => window.location.reload()}>Retry</button>
+                </div>
+            </div>
+        );
+    }
+
+    // Prepare chart data
+    const revenueData = (dashboardData?.monthly_revenue || []).map(data => ({
         month: data.month,
-        revenue: data.revenue,
-        target: data.revenue * 0.95
+        revenue: data.revenue
     }));
-    const topProducts = getProductRevenue().slice(0, 3);
+    const topClients = dashboardData?.top_clients || [];
     const departmentData = [
         { department: 'Sales', performance: 85 },
         { department: 'Operations', performance: 92 },
@@ -24,33 +71,33 @@ const ExecutiveDashboard = () => {
             <div className="kpi-grid">
                 <StatCard
                     title="Total Revenue"
-                    value={formatCurrency(kpis.totalRevenue)}
+                    value={formatCurrency(dashboardData?.total_revenue || 0)}
                     trend="vs last month"
-                    trendValue={kpis.growthRate}
+                    trendValue={dashboardData?.revenue_growth || 0}
                     icon="💰"
                     color="success"
                 />
                 <StatCard
-                    title="Growth Rate"
-                    value={`${kpis.growthRate}%`}
+                    title="Revenue Growth"
+                    value={`${(dashboardData?.revenue_growth || 0).toFixed(1)}%`}
                     trend="Month over Month"
-                    trendValue={kpis.growthRate > 0 ? 5.2 : -2.1}
+                    trendValue={dashboardData?.revenue_growth || 0}
                     icon="📈"
                     color="primary"
                 />
                 <StatCard
-                    title="Profit Margin"
-                    value={`${kpis.profitMargin}%`}
-                    trend="Above target 30%"
-                    trendValue={8.3}
-                    icon="💎"
+                    title="Total Invoices"
+                    value={(dashboardData?.total_invoices || 0).toString()}
+                    trend="Total created"
+                    trendValue={dashboardData?.invoice_growth || 0}
+                    icon="📄"
                     color="info"
                 />
                 <StatCard
-                    title="Active Customers"
-                    value={kpis.activeCustomers.toString()}
-                    trend="Converted + Repeat"
-                    trendValue={3.4}
+                    title="Active Clients"
+                    value={(dashboardData?.active_clients || 0).toString()}
+                    trend="With invoices"
+                    trendValue={dashboardData?.client_growth || 0}
                     icon="👥"
                     color="warning"
                 />
@@ -105,16 +152,17 @@ const ExecutiveDashboard = () => {
 
             <div className="summary-section">
                 <div className="summary-card">
-                    <h3 className="summary-title">Top Performing Products (Real Data)</h3>
+                    <h3 className="summary-title">Top Clients by Revenue (Real Data)</h3>
                     <div className="summary-list">
-                        {topProducts.map((product, index) => (
+                        {topClients.map((client, index) => (
                             <div key={index} className="summary-item">
                                 <span className="summary-rank">{index + 1}</span>
-                                <span className="summary-name">{product.name}</span>
-                                <span className="summary-value">{formatCurrency(product.value)}</span>
+                                <div className="summary-info">
+                                    <h4 className="summary-name">{client.name}</h4>
+                                    <p className="summary-detail">{formatCurrency(client.revenue)}</p>
+                                </div>
                             </div>
-                        ))}
-                    </div>
+                        ))}</div>
                 </div>
 
                 <div className="summary-card">

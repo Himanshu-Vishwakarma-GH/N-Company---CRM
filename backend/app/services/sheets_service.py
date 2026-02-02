@@ -91,12 +91,14 @@ class SheetsService:
         """
         try:
             # Get headers to ensure correct column order
+            logger.info(f"Fetching headers from {sheet_name}")
             result = self.service.spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id,
                 range=f"{sheet_name}!A1:Z1"
             ).execute()
             
             headers = result.get('values', [[]])[0]
+            logger.info(f"Headers found: {headers}")
             
             if not headers:
                 logger.error(f"Sheet {sheet_name} has no headers")
@@ -104,20 +106,21 @@ class SheetsService:
             
             # Build row in correct order
             row_values = [data.get(header, '') for header in headers]
+            logger.info(f"Row values to append: {row_values}")
             
             # Append row
             body = {
                 'values': [row_values]
             }
             
-            self.service.spreadsheets().values().append(
+            result = self.service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id,
                 range=f"{sheet_name}!A:Z",
                 valueInputOption='RAW',
                 body=body
             ).execute()
             
-            logger.info(f"Appended row to {sheet_name}")
+            logger.info(f"Appended row to {sheet_name}, result: {result.get('updates', {})}")
             return True
             
         except HttpError as e:
