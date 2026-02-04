@@ -13,6 +13,20 @@ class ClientService:
     def __init__(self, sheets: SheetsService):
         self.sheets = sheets
     
+    def _safe_int(self, value) -> int:
+        """Safely convert value to int, return 0 if conversion fails."""
+        try:
+            return int(value) if value else 0
+        except (ValueError, TypeError):
+            return 0
+    
+    def _safe_float(self, value) -> float:
+        """Safely convert value to float, return 0.0 if conversion fails."""
+        try:
+            return float(value) if value else 0.0
+        except (ValueError, TypeError):
+            return 0.0
+    
     def _generate_client_id(self) -> str:
         """Generate a unique client ID."""
         # Get all existing clients

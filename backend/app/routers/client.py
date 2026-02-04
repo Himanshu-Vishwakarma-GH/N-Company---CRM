@@ -6,6 +6,8 @@ from typing import List
 from app.schemas.client import Client, ClientCreate
 from app.services.client_service import ClientService
 from app.services.sheets_service import SheetsService
+from app.services.activity_service import ActivityService
+from app.schemas.activity import ActivityLogCreate
 from app.core.config import settings
 from app.core.dependencies import verify_api_key
 import logging
@@ -23,6 +25,7 @@ sheets_service = SheetsService(
     spreadsheet_id=settings.spreadsheet_id
 )
 client_service = ClientService(sheets_service)
+activity_service = ActivityService(sheets_service)
 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -46,6 +49,16 @@ async def create_client(
         logger.info(f"Creating client: {client_data.name}")
         client = client_service.create_client(client_data)
         logger.info(f"Client created successfully: {client.client_id}")
+        
+        # Log activity
+        activity_service.log_activity(ActivityLogCreate(
+            type="client_created",
+            title="New Client Added",
+            description=f"Added client {client.name} ({client.client_id})",
+            entity_id=client.client_id,
+            entity_type="client",
+            user="Admin"
+        ))
         
         return {
             "success": True,

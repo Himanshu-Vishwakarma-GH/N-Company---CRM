@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.core.config import settings
-from app.routers import invoice, client, dashboard, task
+from app.routers import invoice, client, dashboard, task, search, ticket, activity
 
 # Configure logging
 logging.basicConfig(
@@ -52,6 +52,16 @@ app.include_router(
 app.include_router(
     task.router,
     prefix=settings.api_prefix
+)
+app.include_router(
+    search.router,
+    prefix=settings.api_prefix
+)
+app.include_router(
+    ticket.router
+)
+app.include_router(
+    activity.router
 )
 
 @app.get("/")

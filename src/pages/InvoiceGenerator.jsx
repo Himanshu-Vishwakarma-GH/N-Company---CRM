@@ -27,14 +27,9 @@ const InvoiceGenerator = () => {
         { id: 1, service: '', description: '', quantity: 1, unitPrice: 0, tax: 18, discount: 0 }
     ]);
 
-    // Client data for suggestions
-    const [clientSuggestions, setClientSuggestions] = useState([
-        'Acme Corporation',
-        'Tech Innovators Ltd',
-        'Global Solutions Inc',
-        'MegaCorp Industries',
-        'StartupXYZ'
-    ]);
+    // Client data for suggestions - Fetch from backend
+    const [clients, setClients] = useState([]);
+    const [clientSuggestions, setClientSuggestions] = useState([]);
 
     // Sales person suggestions
     const [salesPersonSuggestions, setSalesPersonSuggestions] = useState([
@@ -54,6 +49,25 @@ const InvoiceGenerator = () => {
         industry: '',
         address: ''
     });
+
+    // Fetch clients on mount
+    useEffect(() => {
+        const fetchClients = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/clients', {
+                    headers: { 'X-API-Key': 'dev-api-key-12345' }
+                });
+                const data = await response.json();
+                if (data.success && data.data) {
+                    setClients(data.data);
+                    setClientSuggestions(data.data.map(c => c.name));
+                }
+            } catch (error) {
+                console.error('Failed to fetch clients:', error);
+            }
+        };
+        fetchClients();
+    }, []);
 
     // Check invoice ID uniqueness
     const checkInvoiceId = async (invId) => {
@@ -174,12 +188,28 @@ const InvoiceGenerator = () => {
         setSuccessMessage('');
 
         try {
-            // Prepare data - need to create a client ID from name
-            const clientId = 'CLT' + Date.now().toString().slice(-3);
+            // Find the actual client by name to get their client_id
+            const selectedClient = clients.find(c => c.name.toLowerCase() === clientName.trim().toLowerCase());
+
+            let finalClientId;
+            if (selectedClient) {
+                // Use existing client's ID
+                finalClientId = selectedClient.client_id;
+                console.log(`Using existing client: ${clientName} (${finalClientId})`);
+            } else if (clientId) {
+                // Use the clientId if it was set from "Add New Client"
+                finalClientId = clientId;
+                console.log(`Using newly created client ID: ${finalClientId}`);
+            } else {
+                // This shouldn't happen, but fallback to error
+                setErrorMessage('Client not found. Please select an existing client or add a new one.');
+                setLoading(false);
+                return;
+            }
 
             const invoiceData = {
                 invoice_id: manualInvoiceId,
-                client_id: clientId,
+                client_id: finalClientId,
                 client_name: clientName.trim(),
                 invoice_date: invoiceDate,
                 due_date: dueDate,

@@ -10,6 +10,8 @@ from app.core.config import settings
 from app.core.dependencies import verify_api_key
 from app.services.sheets_service import SheetsService
 from app.services.invoice_service import InvoiceService
+from app.services.activity_service import ActivityService
+from app.schemas.activity import ActivityLogCreate
 from app.schemas.invoice import (
     InvoiceCreate,
     InvoiceResponse,
@@ -32,6 +34,7 @@ sheets_service = SheetsService(
     spreadsheet_id=settings.spreadsheet_id
 )
 invoice_service = InvoiceService(sheets_service)
+activity_service = ActivityService(sheets_service)
 
 
 @router.post(
@@ -58,6 +61,16 @@ async def create_invoice(
     """
     try:
         invoice = invoice_service.create_invoice(invoice_data)
+        
+        # Log activity
+        activity_service.log_activity(ActivityLogCreate(
+            type="invoice_generated",
+            title="Invoice Generated",
+            description=f"Generated invoice #{invoice.invoice_id} for {invoice.client_id}",
+            entity_id=invoice.invoice_id,
+            entity_type="invoice",
+            user=invoice_data.sales_person or "Admin"
+        ))
         
         return ApiResponse(
             success=True,

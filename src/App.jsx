@@ -12,6 +12,7 @@ import FinancialDashboard from './pages/FinancialDashboard';
 import SupportDashboard from './pages/SupportDashboard';
 import ClientManagement from './pages/ClientManagement';
 import LegalCompliance from './pages/LegalCompliance';
+import ActivityLog from './pages/ActivityLog';
 
 import './App.css';
 
@@ -34,6 +35,7 @@ function App() {
                             <Route path="/dashboard/support" element={<SupportDashboard />} />
                             <Route path="/clients" element={<ClientManagement />} />
                             <Route path="/legal" element={<LegalCompliance />} />
+                            <Route path="/activity" element={<ActivityLog />} />
                         </Routes>
                     </div>
                 </div>

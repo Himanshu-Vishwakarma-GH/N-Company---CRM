@@ -139,10 +139,258 @@ export const clientAPI = {
      * @returns {Promise<Array>} List of clients
      */
     listClients: async () => {
-        // Placeholder for future implementation
-        // Will call GET /api/v1/clients when endpoint is built
-        throw new Error('Client API not yet implemented');
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/clients`,
+                {
+                    method: 'GET',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch clients');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching clients:', error);
+            throw error;
+        }
     },
+
+    /**
+     * Get a single client by ID
+     * @param {string} clientId - Client ID
+     * @returns {Promise<Object>} Client data
+     */
+    getClient: async (clientId) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/clients/${clientId}`,
+                {
+                    method: 'GET',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch client');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching client:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Create a new client
+     * @param {Object} clientData - Client data
+     * @returns {Promise<Object>} Created client
+     */
+    createClient: async (clientData) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/clients`,
+                {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify(clientData),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to create client');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error creating client:', error);
+            throw error;
+        }
+    },
+};
+
+// Ticket API
+export const ticketAPI = {
+    listTickets: async (filters = {}) => {
+        try {
+            const queryParams = new URLSearchParams();
+            if (filters.status) queryParams.append('status', filters.status);
+            if (filters.priority) queryParams.append('priority', filters.priority);
+            if (filters.client_id) queryParams.append('client_id', filters.client_id);
+            if (filters.limit) queryParams.append('limit', filters.limit);
+
+            const url = `${API_BASE_URL}/tickets${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: getHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch tickets');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching tickets:', error);
+            throw error;
+        }
+    },
+
+    getTicket: async (ticketId) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/tickets/${ticketId}`,
+                {
+                    method: 'GET',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch ticket');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching ticket:', error);
+            throw error;
+        }
+    },
+
+    createTicket: async (ticketData) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/tickets`,
+                {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify(ticketData),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to create ticket');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error creating ticket:', error);
+            throw error;
+        }
+    },
+
+    updateTicket: async (ticketId, updates) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/tickets/${ticketId}`,
+                {
+                    method: 'PUT',
+                    headers: getHeaders(),
+                    body: JSON.stringify(updates),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to update ticket');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error updating ticket:', error);
+            throw error;
+        }
+    },
+
+    updateStatus: async (ticketId, status) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/tickets/${ticketId}/status?status=${status}`,
+                {
+                    method: 'PATCH',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to update ticket status');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error updating ticket status:', error);
+            throw error;
+        }
+    }
+};
+
+// Activity API
+export const activityAPI = {
+    listActivities: async (limit = 50) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/activities?limit=${limit}`,
+                {
+                    method: 'GET',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch activities');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching activities:', error);
+            throw error;
+        }
+    },
+
+    getUnreadCount: async () => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/activities/unread-count`,
+                {
+                    method: 'GET',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to get unread count');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching unread count:', error);
+            throw error;
+        }
+    },
+
+    markAllRead: async () => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/activities/mark-read`,
+                {
+                    method: 'POST',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to mark activities read');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error marking activities read:', error);
+            throw error;
+        }
+    }
 };
 
 /**
@@ -375,9 +623,48 @@ export const taskAPI = {
     },
 };
 
+/**
+ * Search API Service
+ */
+export const searchAPI = {
+    /**
+     * Search across clients and invoices
+     * @param {string} query - Search query
+     * @param {Object} params - Optional parameters (type, limit)
+     * @returns {Promise<Object>} Search results
+     */
+    search: async (query, params = {}) => {
+        const queryParams = new URLSearchParams({ q: query });
+        if (params.type) queryParams.append('type', params.type);
+        if (params.limit) queryParams.append('limit', params.limit);
+
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/search?${queryParams.toString()}`,
+                {
+                    method: 'GET',
+                    headers: getHeaders(),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Search failed');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error searching:', error);
+            throw error;
+        }
+    },
+};
+
 export default {
     invoice: invoiceAPI,
     client: clientAPI,
     dashboard: dashboardAPI,
     task: taskAPI,
+    search: searchAPI,
+    ticket: ticketAPI,
+    activity: activityAPI,
 };

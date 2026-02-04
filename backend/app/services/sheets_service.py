@@ -32,7 +32,10 @@ class SheetsService:
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
             
-            # Build service
+            # Build service with timeout
+            import socket
+            socket.setdefaulttimeout(30)  # 30 second timeout
+            
             self.service = build('sheets', 'v4', credentials=credentials)
             logger.info("Google Sheets service initialized successfully")
             
